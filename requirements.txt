@@ -2,3 +2,4 @@ pandas
 numpy
 icecream
 rich
+pydantic
