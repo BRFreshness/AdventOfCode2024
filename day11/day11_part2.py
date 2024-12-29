@@ -1,10 +1,9 @@
-# import threading
-import multiprocessing as mp
-from icecream import ic
-import time
+# from icecream import ic
 
 class BlinkResult:
-    def __init__(self, keep_list: bool = False):
+    def __init__(self, stones: list[int], depth: int, keep_list: bool = False):
+        self.stones = stones
+        self.depth = depth
         self.stone_list = []
         self.count = 0
         self.keep_list = keep_list
@@ -22,6 +21,23 @@ class BlinkResult:
         if (stone, depth) in self.solutions:
             return self.solutions[(stone, depth)]
         return -1
+
+    def _apply_rules_depth_first(self, stone: int, count: int, depth: int) -> int:
+        if depth == self.depth:
+            self.add_stone(stone)
+            return count
+        depth += 1
+        new_stones = apply_rules(stone)
+        count += len(new_stones) - 1
+        for stone in new_stones:
+            count += self._apply_rules_depth_first(stone, count, depth)
+        return count
+
+    def blink_depth_first(self):
+        count = 0
+        for stone in self.stones:
+            count += self._apply_rules_depth_first(stone, 1,0)
+        print(f"my count: {count}")
 
 def apply_rules(stone: int) -> list[int]:
     # ----------------------- rule #1 ----------------
@@ -44,57 +60,34 @@ def blink(stones: list[int]) -> list[int]:
          new_stones.extend(apply_rules(stone))
     return new_stones
 
-def apply_rules_depth_first(stone:int, depth: int, result: BlinkResult):
-    if depth == 0:
-        result.add_stone(stone)
-        return
-    depth -= 1
-    new_stones = apply_rules(stone)
-    for stone in new_stones:
-        apply_rules_depth_first(stone, depth, result)
-
-def blink_depth_first(stones: list[int], depth: int, result: BlinkResult):
-    # start = time.time()
-    # last_time = start
-    # now = 0
-    for i, stone in enumerate(stones):
-        apply_rules_depth_first(stone, depth, result)
-        # now = time.time()
-        # elapsed = f"{now - last_time:.2f}s"
-        # last_time = now
-        # ic(i, result.count, elapsed)
-    # total_time = f"{now - start:.2f}s"
-    # ic(total_time)
-
 def main():
-    part = "part2"
-    with open("input.txt") as f:
+    with open("sample.txt") as f:
         line = f.readline()
         stones = [int(x) for x in line.strip().split(" ")]
     print(f"{len(stones)} stones: {stones}")
 
     # --------------------------------
-    # part 1
-    # --------------------------------
-    if part == "part1":
-        for i in range(25):
-            stones = blink(stones)
-            if i < 6:
-                print(i+1, len(stones), stones)
-            if i > 25:
-                print(f"{i=}...")
-        print(f"{len(stones)=}")
-
-    # --------------------------------
     # part 2
     # --------------------------------
-    else:
-        depth_target = 25
-        result = BlinkResult(keep_list=False)
-        blink_depth_first(stones, depth_target, result)
-        print(f"{result.count=}")
+    depth_target = 2
+
+    final_string = []
+    solutions = {}
+    for i, stone in enumerate(stones.copy()):
+        new_stones = []
+        depth = depth_target
+        if (stone, depth) in solutions:
+            # new_stones.extend(solutions[(stone, depth)])
+            new_stones = solutions[(stone, depth)].copy()
 
 
+        for depth in range(1, depth_target + 1):
+            if (stone, depth) in solutions:
+                stones = solutions[(stone, depth)]
+            else:
+                stones = blink(stones)
+                solutions[(stone, depth)] = stones
+            final_string.extend(stones)
 
 if __name__ == "__main__":
     main()
