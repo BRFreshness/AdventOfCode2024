@@ -21,11 +21,12 @@ def blink(stones: list[int]) -> list[int]:
          new_stones.extend(apply_rules(stone))
     return new_stones
 
-def main():
-    with open("sample.txt") as f:
+def main(filename:str):
+    with open(filename) as f:
         line = f.readline()
         stones = [int(x) for x in line.strip().split(" ")]
-    print(f"{len(stones)} stones: {stones}")
+    print("-----------------------------------------------")
+    print(f"{filename}: {stones}")
 
     # --------------------------------
     # part 1
@@ -40,5 +41,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main("sample.txt")
+    main("input.txt")
 

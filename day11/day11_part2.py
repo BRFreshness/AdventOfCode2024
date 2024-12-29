@@ -1,4 +1,8 @@
-# from icecream import ic
+
+# supress bogus code inspection message
+# noinspection PyTypeChecker
+global_solutions: dict[(int, int)] = {}
+
 
 class BlinkResult:
     def __init__(self, stones: list[int], depth: int, keep_list: bool = False):
@@ -60,35 +64,63 @@ def blink(stones: list[int]) -> list[int]:
          new_stones.extend(apply_rules(stone))
     return new_stones
 
-def main():
-    with open("sample.txt") as f:
+
+
+def blink_single_stone(stone: int, depth_target: int) -> list[int]:
+    global global_solutions
+    for depth in range(1, depth_target+1):
+        if (stone, depth) not in global_solutions:
+            stones = [stone]
+            for i in range(depth):
+                stones = blink(stones)
+            global_solutions[(stone, depth)] = stones
+            print("*", end="")
+        else:
+            print(".", end="")
+    return global_solutions[(stone, depth_target)]
+
+def apply_rules_depth_first(stone:int, depth: int, result: BlinkResult):
+    if depth == 0:
+        result.add_stone(stone)
+        return
+    depth -= 1
+    new_stones = apply_rules(stone)
+    for stone in new_stones:
+        apply_rules_depth_first(stone, depth, result)
+
+def blink_depth_first(stones: list[int], depth: int, result: BlinkResult):
+    for i, stone in enumerate(stones):
+        apply_rules_depth_first(stone, depth, result)
+
+
+def main(filename:str):
+    with open(filename) as f:
         line = f.readline()
         stones = [int(x) for x in line.strip().split(" ")]
-    print(f"{len(stones)} stones: {stones}")
+    print("-----------------------------------------------")
+    print(f"{filename}: {stones}")
 
     # --------------------------------
     # part 2
     # --------------------------------
-    depth_target = 2
-
-    final_string = []
-    solutions = {}
+    new_stones = []
+    depth_target = 25
     for i, stone in enumerate(stones.copy()):
-        new_stones = []
-        depth = depth_target
-        if (stone, depth) in solutions:
-            # new_stones.extend(solutions[(stone, depth)])
-            new_stones = solutions[(stone, depth)].copy()
+        new_stones.extend(blink_single_stone(stone, depth_target))
+        print()
+    print(f"{len(new_stones)=}")
+    print(f"{len(global_solutions)=}")
+    # for stone in stones:
+    #     for _ in range(3):
+    #         i = random.randint(1, 10)
+    #         print(f"{(stone,i)} => {global_solutions[(stone,i)]}")
 
 
-        for depth in range(1, depth_target + 1):
-            if (stone, depth) in solutions:
-                stones = solutions[(stone, depth)]
-            else:
-                stones = blink(stones)
-                solutions[(stone, depth)] = stones
-            final_string.extend(stones)
+    # print(f"{global_solutions.keys()=}")
 
 if __name__ == "__main__":
-    main()
+    # main("sample.txt")
+    # main("sample.txt")
+    main("input.txt")
+
 
