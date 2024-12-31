@@ -1,7 +1,7 @@
 
 global_solutions = {}
 
-class BlinkResult:
+class Blink:
     def __init__(self, stones: list[int], depth: int, keep_list: bool = False):
         self.stones = stones
         self.depth = depth
@@ -9,36 +9,50 @@ class BlinkResult:
         self.count = 0
         self.keep_list = keep_list
         self.solutions = {}
+        self.debug = False
+
+    def clear(self):
+        self.stone_list = []
+        self.count = 0
+        self.solutions = {}
+
+    def run(self):
+        self.clear()
+        for stone in self.stones:
+            self.apply_rules(stone, count=1, depth=0)
+            if self.debug:
+                print()
 
     def add_stone(self, stone: int):
         if self.keep_list:
             self.stone_list.append(stone)
         self.count += 1
 
-    def add_solution(self, stone: int, depth: int, solution: int):
-        self.solutions[(stone, depth)] =  solution
-
-    def check_solution(self, stone: int, depth: int) -> int:
-        if (stone, depth) in self.solutions:
-            return self.solutions[(stone, depth)]
-        return -1
-
-    def _apply_rules_depth_first(self, stone: int, count: int, depth: int) -> int:
+    def apply_rules(self, stone: int, count: int, depth: int) -> int:
         if depth == self.depth:
             self.add_stone(stone)
             return count
         depth += 1
-        new_stones = apply_rules(stone)
+        if (stone, depth) in self.solutions:
+            new_stones = self.solutions[(stone, depth)]
+            if self.debug:
+                print(".", end="")
+        else:
+            new_stones = apply_rules(stone)
+            self.solutions[(stone, depth)] = new_stones.copy()
+            if self.debug:
+                print("+", end="")
         count += len(new_stones) - 1
         for stone in new_stones:
-            count += self._apply_rules_depth_first(stone, count, depth)
+            count += self.apply_rules(stone, count, depth)
         return count
 
-    def blink_depth_first(self):
-        count = 0
-        for stone in self.stones:
-            count += self._apply_rules_depth_first(stone, 1,0)
-        print(f"my count: {count}")
+    def print(self):
+        print(f"depth={self.depth} count={self.count}", end="")
+        if self.keep_list:
+            print(f" len={len(self.stone_list)} stone_list[0:25]={self.stone_list[0:25]}")
+        else:
+            print()
 
 
 def apply_rules(stone: int) -> list[int]:
@@ -63,28 +77,5 @@ def blink(stones: list[int]) -> list[int]:
     return new_stones
 
 
-def blink_single_stone(stone: int, depth_target: int) -> list[int]:
-    global global_solutions
-    for depth in range(1, depth_target+1):
-        if (stone, depth) not in global_solutions:
-            stones = [stone]
-            for i in range(depth):
-                stones = blink(stones)
-            global_solutions[(stone, depth)] = stones
-            print("*", end="")
-        else:
-            print(".", end="")
-    return global_solutions[(stone, depth_target)]
 
-def apply_rules_depth_first(stone:int, depth: int, result: BlinkResult):
-    if depth == 0:
-        result.add_stone(stone)
-        return
-    depth -= 1
-    new_stones = apply_rules(stone)
-    for stone in new_stones:
-        apply_rules_depth_first(stone, depth, result)
 
-def blink_depth_first(stones: list[int], depth: int, result: BlinkResult):
-    for i, stone in enumerate(stones):
-        apply_rules_depth_first(stone, depth, result)

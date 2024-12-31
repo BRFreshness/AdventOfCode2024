@@ -17,17 +17,11 @@ def part1(stones: list[int]):
 # part 2
 # --------------------------------
 def part2(stones: list[int]):
-    new_stones = []
-    depth_target = 25
-    for i, stone in enumerate(stones.copy()):
-        new_stones.extend(blink_single_stone(stone, depth_target))
-        print()
-    print(f"{len(new_stones)=}")
-    print(f"{len(global_solutions)=}")
-    for stone in stones:
-        for _ in range(3):
-            i = random.randint(1, 10)
-            print(f"{(stone,i)} => {global_solutions[(stone,i)]}")
+    depth_target = 30
+    keep_list = True if depth_target < 20 else False
+    results = Blink(stones, depth_target, keep_list)
+    results.run()
+    results.print()
 
 
 def main(filename: str):
@@ -42,5 +36,5 @@ def main(filename: str):
 
 if __name__ == "__main__":
     main("sample.txt")
-    # main("input.txt")
+    main("input.txt")
 
