@@ -1,4 +1,3 @@
-import random
 from blink import *
 
 # --------------------------------
@@ -17,12 +16,8 @@ def part1(stones: list[int]):
 # part 2
 # --------------------------------
 def part2(stones: list[int]):
-    depth_target = 30
-    keep_list = True if depth_target < 20 else False
-    results = Blink(stones, depth_target, keep_list)
-    results.run()
-    results.print()
-
+    depth_target = 75
+    print(count_each_stone(stones, depth_target))
 
 def main(filename: str):
     with open(filename) as f:
