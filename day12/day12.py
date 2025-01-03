@@ -1,4 +1,5 @@
 
+import operator
 import numpy as np
 from borders import *
 
@@ -9,6 +10,7 @@ class Field:
         self.rows = field.shape[0]
         self.columns = field.shape[1]
         self.regions = []
+        self.full_map = None
 
     def scan_for_regions(self):
         for row in range(self.rows):
@@ -27,7 +29,11 @@ class Field:
         return self.field[loc]
 
     def __str__(self):
-        return str(self.field)
+        m = self.field if self.full_map is None else self.full_map
+        data = []
+        for row in range(m.shape[0]):
+            data.append("".join(m[row, :]))
+        return "\n".join(data) + "\n"
 
     def print_regions(self):
         fence_cost = 0
@@ -44,7 +50,7 @@ class Field:
                 cells.append(new_loc)
         return cells
 
-    def print_fences(self):
+    def draw_fences(self, btype: type[LightBorders] | type[HeavyBorders] | type[DoubleBorders] = LightBorders):
         # full map is defined as an interleaved map of the field and the fences.
         field = self.field
         full_height = self.rows * 2 + 1
@@ -56,21 +62,21 @@ class Field:
                 # add outside perimeter fence
                 if row == 0:
                     if col == 0:
-                        full_map[row][col] = LightBorders.TOP_LEFT
+                        full_map[row][col] = btype.TOP_LEFT
                     elif col == full_width - 1:
-                        full_map[row][col] = LightBorders.TOP_RIGHT
+                        full_map[row][col] = btype.TOP_RIGHT
                     else:
-                        full_map[row][col] = LightBorders.HORIZ
+                        full_map[row][col] = btype.HORIZ
                 elif row == full_height - 1:
                     if col == 0:
-                        full_map[row][col] = LightBorders.BOTTOM_LEFT
+                        full_map[row][col] = btype.BOTTOM_LEFT
                     elif col == full_width - 1:
-                        full_map[row][col] = LightBorders.BOTTOM_RIGHT
+                        full_map[row][col] = btype.BOTTOM_RIGHT
                     else:
-                        full_map[row][col] = LightBorders.HORIZ
+                        full_map[row][col] = btype.HORIZ
                 else:
                     if col == 0 or col == full_width - 1:
-                        full_map[row][col] = LightBorders.VERT
+                        full_map[row][col] = btype.VERT
 
                 # Field crop cells live in the odd indices of full_map. copy those over as we also scan
                 # for crop transitions and draw in the horizontal and vertical fences between crops
@@ -83,10 +89,10 @@ class Field:
                     # when the crop changes as we scan across the field add a fence symbol in between plots
                     if east[1] in range(self.columns):
                         if field[east] != field[loc]:
-                            full_map[row][col + 1] = LightBorders.VERT
+                            full_map[row][col + 1] = btype.VERT
                     if south[0] in range(self.rows):
                         if field[south] != field[loc]:
-                            full_map[row + 1][col] = LightBorders.HORIZ
+                            full_map[row + 1][col] = btype.HORIZ
 
         # join the gaps at corners and junctions by figuring out if a fence exists at the cardinal points
         # special case for the edges of the map
@@ -98,10 +104,14 @@ class Field:
                     south = False if row == full_height - 1 else full_map[row + 1][col] != " "
                     west = False if col == 0 else full_map[row][col - 1] != " "
                     east = False if col == full_width - 1 else full_map[row][col + 1] != " "
-                    full_map[row][col] = map_joiner(north, east, south, west, LightBorders)
+                    full_map[row][col] = map_joiner(north, east, south, west, btype)
+        self.full_map = full_map
 
-        for row in range(full_map.shape[0]):
-            print("".join(full_map[row, :]))
+    def find_sides(self):
+        if self.full_map is None:
+            self.draw_fences()
+        for region in self.regions:
+            region.find_sides()
 
 class Region:
     def __init__(self, field: Field, loc: tuple):
@@ -139,15 +149,23 @@ class Region:
 
     def find_sides(self):
         self.sides = []
-        vert_edges = np.full(shape=(self.field.rows, self.field.columns+1), fill_value=None)
-        horiz_edges = np.full(shape=(self.field.rows+1, self.field.columns), fill_value=None)
         for loc in self.locations:
-            north = (loc[0]-1, loc[1])
-            south = (loc[0]+1, loc[1])
-            west = (loc[0], loc[1]-1)
-            east = (loc[0], loc[1]+1)
-
-
+            # convert to full_map location coordinates
+            full_loc = (loc[0] * 2 + 1, loc[1] * 2 + 1)
+            north = (full_loc[0] - 1, full_loc[1])
+            south = (full_loc[0] + 1, full_loc[1])
+            east = (full_loc[0], full_loc[1] + 1)
+            west = (full_loc[0], full_loc[1] - 1)
+            for adjacent in (north, south, east, west):
+                if self.field.full_map[adjacent] != " ":
+                    side = Side(self, full_loc, adjacent)
+                    if len(side.edges) > 0:
+                        flag = True
+                        for check_side in self.sides:
+                            if side.edges[0] == check_side.edges[0]:
+                                flag = False
+                        if flag:
+                            self.sides.append(side)
 
     def __str__(self):
         return f"{self.crop_type}: {self.area} * {self.perimeter} = {self.area * self.perimeter} ".ljust(22) + \
@@ -161,29 +179,58 @@ class Side:
     In deriving contiguous sides, we must watch that the in-side remains consistent
     """
     def __init__(self, region: Region, loc: tuple, adjacent: tuple):
-        self.field = region.field
+        self.full_map = region.field.full_map
         self.region = region
         self.edges = []
+        self.extend_side(loc, adjacent)
+
+    def extend_side(self, loc: tuple, adjacent: tuple):
+        def check_limits(loc: tuple) -> bool:
+            return loc[0] not in range(self.full_map.shape[0]) or loc[1] not in range(self.full_map.shape[1])
+
+        for delta in [((loc[1] - adjacent[1]) *  2, (loc[0] - adjacent[0]) *  2),
+                      ((loc[1] - adjacent[1]) * -2, (loc[0] - adjacent[0]) * -2)]:
+            check_loc = loc
+            check_adj = adjacent
+            while self.full_map[check_loc] == self.region.crop_type and \
+                  self.full_map[check_adj] != " " and self.add_edge(check_loc, check_adj):
+                check_loc = (check_loc[0] + delta[0], check_loc[1] + delta[1])
+                check_adj = (check_adj[0] + delta[0], check_adj[1] + delta[1])
+                if check_limits(check_loc) or check_limits(check_adj):
+                    break
+
+    def add_edge(self, loc: tuple, adjacent: tuple) -> bool:
+        if self.full_map[loc] != self.full_map[adjacent]:
+            edge = adjacent #(loc[0] + adjacent[0] + 1, loc[1] + adjacent[1] + 1)
+            if edge not in self.edges:
+                self.edges.append(edge)
+            self.edges.sort(key=operator.itemgetter(0,1))
+            return True
+        return False
+
+
+    def __str__(self):
+        return f"{self.edges}"
 
 
 def main(filename: str):
     with open(filename) as f:
-        crop_types = {}
         rows = []
         for line in f:
             row = list(line.strip())
             if len(row) > 0:
                 rows.append(row)
-                for crop in row:
-                    if crop not in crop_types:
-                        crop_types[crop] = 1
-                    else:
-                        crop_types[crop] += 1
         field = Field(np.array(rows))
-    # print(field)
     field.scan_for_regions()
-    # field.print_regions()
-    field.print_fences()
+    field.draw_fences()
+    field.find_sides()
+    field.print_regions()
+    print(field)
+    price = 0
+    for region in field.regions:
+        price += len(region.sides) * region.area
+
+    print(f"Total price: {price}")
 
 
 if __name__ == "__main__":

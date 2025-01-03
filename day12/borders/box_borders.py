@@ -39,8 +39,9 @@ class DoubleBorders(StrEnum):
     VERT_LEFT = "\u2560"
     CROSS = "\u256c"
 
-# noinspection PyUnresolvedReferences
-def map_joiner(north: bool, east: bool, south: bool, west: bool, btype: type[StrEnum] = LightBorders) -> str:
+def map_joiner(north: bool, east: bool, south: bool, west: bool, btype: type[LightBorders] |\
+                                                                        type[HeavyBorders] |\
+                                                                        type[DoubleBorders] = LightBorders) -> str:
     char_map = {
         #north  east   south  west
         (False, False, False, False): " ",
