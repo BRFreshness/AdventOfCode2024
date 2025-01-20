@@ -2,6 +2,8 @@
 import operator
 import numpy as np
 from borders import *
+from util import adjacent_to
+
 
 class Field:
     def __init__(self, field: np.array):
@@ -152,11 +154,7 @@ class Region:
         for loc in self.locations:
             # convert to full_map location coordinates
             full_loc = (loc[0] * 2 + 1, loc[1] * 2 + 1)
-            north = (full_loc[0] - 1, full_loc[1])
-            south = (full_loc[0] + 1, full_loc[1])
-            east = (full_loc[0], full_loc[1] + 1)
-            west = (full_loc[0], full_loc[1] - 1)
-            for adjacent in (north, south, east, west):
+            for adjacent in adjacent_to(full_loc):
                 if self.field.full_map[adjacent] != " ":
                     side = Side(self, full_loc, adjacent)
                     if len(side.edges) > 0:
