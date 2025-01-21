@@ -16,6 +16,9 @@ class Headings(Enum):
     def y(self):
         return self._value_[0]
 
+    def __lt__(self, other):
+        return self._value_[0] < other._value_[0]
+
     def add(self, loc: tuple) -> tuple:
         return self._value_[0] + loc[0], self._value_[1] + loc[1]
 
@@ -34,6 +37,10 @@ class Headings(Enum):
 
     def ccw(self) -> Enum:
         return self.rotate(cw=False)
+
+    def rot180(self) -> Enum:
+        r1 = self.rotate(cw=False)
+        return r1.rotate(cw=False)
 
     def rotations(self, loc: tuple, new_loc: tuple, degrees = False) -> tuple[int, "Headings"]:
         heading = self.__copy__()

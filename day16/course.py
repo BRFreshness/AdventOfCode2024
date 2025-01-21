@@ -18,7 +18,6 @@ class Cell:
         self.loc: tuple = loc
         self.score: float = np.inf
         self.previous_loc: tuple | None = None
-        self.previous_heading: Headings | None = None
         self.cell_type: CellTypes
         try:
             self.cell_type = CellTypes(cell)
@@ -30,11 +29,7 @@ class Cell:
 
 
 class Course:
-    def __init__(self, filename: str):
-        rows = []
-        with open(filename) as f:
-            for line in f:
-                rows.append(list(line.strip()))
+    def __init__(self, rows: list):
         self.course: np.array(Cell) = np.empty(shape=(len(rows), len(rows[0])), dtype=CellTypes)
         self.start: tuple = (0, 0)
         self.end: tuple = (0, 0)
@@ -48,6 +43,15 @@ class Course:
         self.queue: PriorityQueue
         self.cur_loc: tuple | None = None
         self.queue = PriorityQueue()
+
+    @classmethod
+    def from_file(cls, filename: str):
+        rows = []
+        with open(filename) as f:
+            for line in f:
+                rows.append(list(line.strip()))
+        instance = cls(rows)
+        return instance
 
     def __getitem__(self, loc: tuple) -> Cell:
         return self.course[loc[0]][loc[1]]
@@ -79,24 +83,24 @@ class Course:
             stepping = True
 
         while not open_list.empty():
-            score, cur_loc, cur_heading = open_list.get()
-            cur_cell = self[cur_loc]
+            cur_score, cur_loc, cur_heading = open_list.get()
 
-            for heading in (Headings.EAST, Headings.WEST, Headings.SOUTH, Headings.NORTH):
-                loc = heading.add(cur_loc)
-                if loc[0] not in range(self.course.shape[0]) or loc[1] not in range(self.course.shape[1]):
+            for new_heading, new_score in ((cur_heading, cur_score + 1),
+                                           (cur_heading.cw(), cur_score + 1001),
+                                           (cur_heading.ccw(), cur_score + 1001),
+                                           (cur_heading.rot180(), cur_score + 2001)):
+                new_loc = new_heading.add(cur_loc)
+                # print(cur_loc, cur_heading, cur_score, " : " , new_loc, new_heading, new_score)
+                # if new_loc[0] not in range(self.course.shape[0]) or new_loc[1] not in range(self.course.shape[1]):
+                #     continue
+                if self[new_loc].cell_type is CellTypes.WALL:
                     continue
-                if self[loc].cell_type is CellTypes.WALL:
-                    continue
 
-                rot, new_heading = cur_heading.rotations(cur_loc, loc)
-                new_score = cur_cell.score + 1 + rot * 1000
-
-                if new_score < self[loc].score:
-                    self[loc].score = new_score
-                    self[loc].previous_loc = cur_loc
-                    self[loc].previous_heading = cur_heading
-                    open_list.put((new_score, loc, new_heading))
+                if new_score < self[new_loc].score:
+                    self[new_loc].score = new_score
+                    self[new_loc].previous_loc = cur_loc
+                    # print("-->", new_score, new_loc, new_heading)
+                    open_list.put((new_score, new_loc, new_heading))
 
             if stepping:
                 self.cur_loc = cur_loc
