@@ -1,7 +1,8 @@
+from icecream import ic
+
 from gui import *
 
 TIMER_EVENT = pg.USEREVENT + 1
-
 
 def main(filename: str):
     stepping = False
@@ -25,7 +26,8 @@ def main(filename: str):
 
     draw_course(display, course, metrics, draw_text)
 
-    pg.time.set_timer(TIMER_EVENT, 200)
+    pg.time.set_timer(TIMER_EVENT, 100)
+    pg.key.set_repeat(500, 30)
 
     while loop:
         for event in pg.event.get():
@@ -43,16 +45,28 @@ def main(filename: str):
                 if event.key == pg.K_RETURN:
                     stepping = not stepping
                     steps_per_click = 1 if stepping else 0
+                if event.key == pg.K_KP_PLUS or event.key == pg.K_PLUS:
+                    metrics.zoom_in()
+                if event.key == pg.K_KP_MINUS or event.key == pg.K_MINUS:
+                    metrics.zoom_out()
+                if event.key == pg.K_LEFT:
+                    metrics.pan_left()
+                if event.key == pg.K_RIGHT:
+                    metrics.pan_right()
+                if event.key == pg.K_UP:
+                    metrics.pan_up()
+                if event.key == pg.K_DOWN:
+                    metrics.pan_down()
 
             if event.type == TIMER_EVENT:
                 if not stepping and steps_per_click == 0:
                     course.step_search(1)
-                    draw_course(display, course, metrics, draw_text)
+                draw_course(display, course, metrics, draw_text)
 
         pg.display.flip()
 
 if __name__ == "__main__":
-    main("sample1.txt")
+    # main("sample1.txt")
     # main("sample2.txt")
     # main("sample3.txt")
-    # main("input.txt")
+    main("input.txt")
