@@ -35,6 +35,10 @@ class GridMetrics:
         self.view_cols = new_cols
         self.cell_height, self.top_margin, self.bottom_margin = GridMetrics.calc_dimensions(self.height, new_rows, self.spacing)
         self.cell_width, self.left_margin, self.right_margin = GridMetrics.calc_dimensions(self.width, new_cols, self.spacing)
+        if self.view_origin[0] + new_rows > self.course.rows:
+            self.view_origin = self.course.rows - new_rows, self.view_origin[1]
+        if self.view_origin[1] + new_cols > self.course.cols:
+            self.view_origin = self.view_origin[0], self.course.cols - new_cols
 
     def zoom_in(self):
         self.zoom *= 1.5
@@ -63,6 +67,28 @@ class GridMetrics:
     def pan_down(self):
         if self.zoom > 1 and self.view_origin[0] < self.course.rows - self.view_rows:
             self.view_origin = self.view_origin[0] + 1, self.view_origin[1]
+
+    def is_visible(self, loc: tuple) -> bool:
+        if loc[0] in range(self.view_origin[0], self.view_origin[0] + self.view_rows) and \
+                loc[1] in range(self.view_origin[1], self.view_origin[1] + self.view_cols):
+            return True
+        return False
+
+    def reposition(self, loc: tuple):
+        if self.is_visible(loc):
+            return
+        min_row = self.view_origin[0]
+        max_row = self.view_origin[0] + self.view_rows - 1
+        min_col = self.view_origin[1]
+        max_col = self.view_origin[1] + self.view_cols - 1
+        if loc[0] < min_row:
+            self.view_origin = loc[0] - 1, self.view_origin[1]
+        if loc[0] > max_row:
+            self.view_origin = loc[0] - self.view_rows + 2, self.view_origin[1]
+        if loc[1] < min_col:
+            self.view_origin = self.view_origin[0], loc[1] - 1
+        if loc[1] > max_col:
+            self.view_origin = self.view_origin[0], loc[1] - self.view_cols + 2
 
     def cell_rect(self, loc: tuple, margin: bool = False) -> tuple:
         m = self.cell_margin if margin else 0
@@ -134,6 +160,10 @@ def draw_course(surface: pg.Surface, course: Course, metrics: GridMetrics, show_
                                             [cell_rect[0] + (cell_rect[2] - cell_score.get_rect()[2]) // 2,
                                              cell_rect[1] + (cell_rect[3] - cell_score.get_rect()[3]) // 2]))
     if course.cur_loc is not None:
+        if course.last_loc is not None:
+            if course.cur_loc != course.last_loc:
+                metrics.reposition(course.cur_loc)
+        course.last_loc = course.cur_loc
         pg.draw.circle(surface, line_color, metrics.cell_center(course.cur_loc), cell_size//2, line_width)
         cur_loc =  cell_font.render(f"{course.cur_loc}", True, text_color)
         rect = cur_loc.get_rect()

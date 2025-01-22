@@ -1,6 +1,6 @@
 import numpy as np
 from enum import StrEnum
-from queue import PriorityQueue
+from queue import PriorityQueue, Queue
 
 from util import Headings
 
@@ -29,8 +29,9 @@ class Cell:
 
 
 class Course:
-    def __init__(self, rows: list):
+    def __init__(self, rows: list, priority: bool = True):
         self.course: np.array(Cell) = np.empty(shape=(len(rows), len(rows[0])), dtype=CellTypes)
+        self.priority = priority
         self.start: tuple = (0, 0)
         self.end: tuple = (0, 0)
         for row in range(self.course.shape[0]):
@@ -42,15 +43,20 @@ class Course:
                     self.end = (row, col)
         self.queue: PriorityQueue
         self.cur_loc: tuple | None = None
-        self.queue = PriorityQueue()
+        self.last_loc: tuple | None = None
+        if self.priority:
+            self.queue = PriorityQueue()
+        else:
+            self.queue = Queue()
+        self.stepping = False
 
     @classmethod
-    def from_file(cls, filename: str):
+    def from_file(cls, filename: str, priority: bool = True):
         rows = []
         with open(filename) as f:
             for line in f:
                 rows.append(list(line.strip()))
-        instance = cls(rows)
+        instance = cls(rows, priority)
         return instance
 
     def __getitem__(self, loc: tuple) -> Cell:

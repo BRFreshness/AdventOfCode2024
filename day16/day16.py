@@ -10,7 +10,6 @@ def main(filename: str):
     loop = True
     draw_text = True
 
-
     # number_keys = (pg.K_0, pg.K_1, pg.K_2, pg.K_3, pg.K_4, pg.K_5, pg.K_6, pg.K_7, pg.K_8, pg.K_9)
 
     course = Course.from_file(filename)
