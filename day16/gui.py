@@ -7,7 +7,7 @@ class GridMetrics:
         self.course = course
         self.height = height
         self.width = height if width is None else width
-        self.spacing = 0
+        self.spacing = 1
         self.zoom: float = 1.0
         self.view_rows = course.rows
         self.view_cols = course.cols
@@ -66,8 +66,8 @@ class GridMetrics:
 
     def cell_rect(self, loc: tuple, margin: bool = False) -> tuple:
         m = self.cell_margin if margin else 0
-        return (self.left_margin + loc[1] * self.cell_width + m,
-                self.top_margin + loc[0] * self.cell_height + m,
+        return (self.left_margin + loc[1] * self.cell_width + (loc[1] - 1) * self.spacing + m,
+                self.top_margin + loc[0] * self.cell_height + (loc[0] - 1) * self.spacing + m,
                 self.cell_width - 2*m, self.cell_height - 2*m)
 
     def cell_center(self, loc: tuple) -> tuple:
