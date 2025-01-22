@@ -5,7 +5,7 @@ from gui import *
 TIMER_EVENT = pg.USEREVENT + 1
 
 def main(filename: str):
-    stepping = False
+    stepping = True
     steps_per_click = 1
     loop = True
     draw_text = True
@@ -34,6 +34,7 @@ def main(filename: str):
                 loop = False
 
             if event.type == pg.KEYDOWN:
+                # print(event.key)
                 if event.key == pg.K_q:
                     loop = False
                     exit()
@@ -44,7 +45,7 @@ def main(filename: str):
                 if event.key == pg.K_RETURN:
                     stepping = not stepping
                     steps_per_click = 1 if stepping else 0
-                if event.key == pg.K_KP_PLUS or event.key == pg.K_PLUS:
+                if event.key == pg.K_KP_PLUS or event.key == pg.K_PLUS or event.key == pg.K_EQUALS:
                     metrics.zoom_in()
                 if event.key == pg.K_KP_MINUS or event.key == pg.K_MINUS:
                     metrics.zoom_out()
