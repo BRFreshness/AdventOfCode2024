@@ -2,6 +2,7 @@ import numpy as np
 from enum import StrEnum
 from queue import PriorityQueue, Queue
 
+from floyd_warshall import *
 from util import Headings
 
 
@@ -49,6 +50,7 @@ class Course:
         else:
             self.queue = Queue()
         self.stepping = False
+        self.graph: Graph = Graph()
 
     @classmethod
     def from_file(cls, filename: str, priority: bool = True):
@@ -115,6 +117,66 @@ class Course:
                     break
 
         return not open_list.empty()
+
+    def process_floyd_warshall(self):
+        # vertices = []
+        # for row in range(self.rows):
+        #     for col in range(self.cols):
+        #         cur_loc = (row, col)
+        #         if self[cur_loc].cell_type is not CellTypes.WALL:
+        #             north = cur_loc[0]-1, cur_loc[1]
+        #             east = cur_loc[0], cur_loc[1]+1
+        #             south = cur_loc[0]+1, cur_loc[1]
+        #             west = cur_loc[0], cur_loc[1]-1
+        #             if self[north].cell_type is CellTypes.WALL and \
+        #                 self[south].cell_type is CellTypes.WALL and \
+        #                 self[west].cell_type is not CellTypes.WALL and \
+        #                 self[east].cell_type is not CellTypes.WALL:
+        #                 continue
+        #             if self[north].cell_type is not CellTypes.WALL and \
+        #                 self[south].cell_type is not CellTypes.WALL and \
+        #                 self[west].cell_type is CellTypes.WALL and \
+        #                 self[east].cell_type is CellTypes.WALL:
+        #                 continue
+        #             vertices.append(cur_loc)
+
+        g = self.graph
+        for row in range(self.rows):
+            for col in range(self.cols):
+                cur_loc = (row, col)
+                north = cur_loc[0] - 1, cur_loc[1]
+                east = cur_loc[0], cur_loc[1] + 1
+                south = cur_loc[0] + 1, cur_loc[1]
+                west = cur_loc[0], cur_loc[1] - 1
+                if self[cur_loc].cell_type is not CellTypes.WALL:
+                    if self[north].cell_type is CellTypes.WALL and \
+                        self[south].cell_type is CellTypes.WALL and \
+                        self[west].cell_type is not CellTypes.WALL and \
+                        self[east].cell_type is not CellTypes.WALL:
+                        continue
+                    if self[north].cell_type is not CellTypes.WALL and \
+                        self[south].cell_type is not CellTypes.WALL and \
+                        self[west].cell_type is CellTypes.WALL and \
+                        self[east].cell_type is CellTypes.WALL:
+                        continue
+                    for cur_h in Headings:
+                        u = g.add_vertex(cur_loc, cur_h)
+                        for adj_h, score in ((cur_h, 1),
+                                             (cur_h.cw(), 1001),
+                                             (cur_h.ccw(), 1001)):
+                            adj_loc = adj_h.add(cur_loc)
+                            while self[adj_loc].cell_type is not CellTypes.WALL:
+                                next_loc = adj_h.add(adj_loc)
+                                if self[next_loc].cell_type is CellTypes.WALL:
+                                    break
+                                adj_loc = next_loc
+                                score += 1
+                            if self[adj_loc].cell_type is not CellTypes.WALL:
+                                v = g.add_vertex(adj_loc, adj_h)
+                                g.add_edge(Edge(u, v, score))
+        g.initialize()
+        # g.solve()
+
 
     def shortest_path(self) -> list:
         """ Returns the path to the end, assuming the board has been filled in via fill_shortest_path """

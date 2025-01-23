@@ -7,7 +7,7 @@ class GridMetrics:
         self.course = course
         self.height = height
         self.width = height if width is None else width
-        self.spacing = 1
+        self.spacing = 0
         self.zoom: float = 1.0
         self.view_rows = course.rows
         self.view_cols = course.cols
@@ -48,9 +48,15 @@ class GridMetrics:
 
     def zoom_out(self):
         self.zoom /= 1.5
+        if self.zoom < 1:
+            self.zoom = 1.0
         rows = int(self.course.rows / self.zoom)
         cols = int(self.course.cols / self.zoom)
         self.resize(rows, cols)
+
+    def zoom_all(self):
+        self.zoom = 1.0
+        self.resize(self.course.rows, self.course.cols)
 
     def pan_right(self):
         if self.zoom > 1 and self.view_origin[1] < self.course.cols - self.view_cols:
@@ -97,10 +103,13 @@ class GridMetrics:
                 self.cell_width - 2*m, self.cell_height - 2*m)
 
     def cell_center(self, loc: tuple) -> tuple:
-        row = loc[0] - self.view_origin[0]
-        col = loc[1] - self.view_origin[1]
+        row = loc[0]
+        col = loc[1]
         rct = self.cell_rect((row, col))
         return rct[0] + rct[2] // 2, rct[1] + rct[3] // 2
+
+    def view_loc(self, loc: tuple) -> tuple:
+        return loc[0] - self.view_origin[0], loc[1] - self.view_origin[1]
 
     def enumerate(self):
         for row in range(self.view_origin[0], self.view_origin[0] + self.view_rows):
@@ -109,9 +118,8 @@ class GridMetrics:
             for col in range(self.view_origin[1], self.view_origin[1] + self.view_cols):
                 if col not in range(self.course.cols):
                     continue
-                view_row = row - self.view_origin[0]
-                view_col = col - self.view_origin[1]
-                yield view_row, view_col, self.course[(row, col)]
+                view_loc = self.view_loc((row, col))
+                yield view_loc, (row, col), self.course[(row, col)]
 
 
 def trans_rect( r, off ):
@@ -127,7 +135,7 @@ def draw_course(surface: pg.Surface, course: Course, metrics: GridMetrics, show_
     line_width = 1
     text_color = pg.Color('white')
 
-    cell_size = metrics.cell_height
+    cell_size = min(metrics.cell_height, metrics.cell_width)
     cell_margin = metrics.cell_margin
 
     if cell_size < 30:
@@ -141,11 +149,9 @@ def draw_course(surface: pg.Surface, course: Course, metrics: GridMetrics, show_
 
     surface.fill(bg_color)
 
-    # for row, line in enumerate(course.course):
-    #     for col, cell in enumerate(line):
-    for row, col, cell in metrics.enumerate():
-        wall_rect = metrics.cell_rect((row, col))
-        cell_rect = metrics.cell_rect((row, col), margin=True)
+    for view_loc, loc, cell in metrics.enumerate():
+        wall_rect = metrics.cell_rect(view_loc)
+        cell_rect = metrics.cell_rect(view_loc, margin=True)
 
         if cell.cell_type == CellTypes.WALL:
             pg.Surface.fill(surface, wall_color, wall_rect)
@@ -169,12 +175,24 @@ def draw_course(surface: pg.Surface, course: Course, metrics: GridMetrics, show_
         rect = cur_loc.get_rect()
         surface.blit(cur_loc, trans_rect(rect, [cell_margin, (cell_size - rect.height) // 2]))
 
-    shortest_path = course.shortest_path()
-    prev_loc = shortest_path.pop()
-    while shortest_path:
-        cur_loc = shortest_path.pop()
-        pg.draw.line(surface, line_color, metrics.cell_center(prev_loc), metrics.cell_center(cur_loc), line_width)
-        prev_loc = cur_loc
+    draw_path(surface,metrics, course.shortest_path(), line_color, line_width)
+
+
+def draw_path(surface: pg.Surface, metrics: GridMetrics, path: list, color: pg.Color, width: int = 1):
+    if len(path) < 2:
+        return
+    for idx in range(len(path)-1):
+        loc1 = metrics.view_loc(path[idx])
+        loc2 = metrics.view_loc(path[idx+1])
+        pg.draw.line(surface, color, metrics.cell_center(loc1), metrics.cell_center(loc2), width)
+
+def draw_diamond(surface: pg.Surface, metrics: GridMetrics, loc: tuple, color: pg.Color, width: int = 1):
+    view_loc = metrics.view_loc(loc)
+    rect = metrics.cell_rect(view_loc, True)
+    center = metrics.cell_center(view_loc)
+    diamond = [(center[0], rect[1]), (rect[0], center[1]),
+               (center[0], rect[1]+rect[3]), (rect[0]+rect[2], center[1])]
+    pg.draw.polygon(surface, color, diamond, width)
 
 
 def _test():
