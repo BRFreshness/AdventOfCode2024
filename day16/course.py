@@ -1,6 +1,7 @@
 import numpy as np
 from enum import StrEnum
 from queue import PriorityQueue, Queue
+from collections import deque
 
 from floyd_warshall import *
 from util import Headings
@@ -119,61 +120,44 @@ class Course:
         return not open_list.empty()
 
     def process_floyd_warshall(self):
-        # vertices = []
-        # for row in range(self.rows):
-        #     for col in range(self.cols):
-        #         cur_loc = (row, col)
-        #         if self[cur_loc].cell_type is not CellTypes.WALL:
-        #             north = cur_loc[0]-1, cur_loc[1]
-        #             east = cur_loc[0], cur_loc[1]+1
-        #             south = cur_loc[0]+1, cur_loc[1]
-        #             west = cur_loc[0], cur_loc[1]-1
-        #             if self[north].cell_type is CellTypes.WALL and \
-        #                 self[south].cell_type is CellTypes.WALL and \
-        #                 self[west].cell_type is not CellTypes.WALL and \
-        #                 self[east].cell_type is not CellTypes.WALL:
-        #                 continue
-        #             if self[north].cell_type is not CellTypes.WALL and \
-        #                 self[south].cell_type is not CellTypes.WALL and \
-        #                 self[west].cell_type is CellTypes.WALL and \
-        #                 self[east].cell_type is CellTypes.WALL:
-        #                 continue
-        #             vertices.append(cur_loc)
+        def is_corridor(loc: tuple) -> bool:
+            north = loc[0] - 1, loc[1]
+            east = loc[0], loc[1] + 1
+            south = loc[0] + 1, loc[1]
+            west = loc[0], loc[1] - 1
+            if (self[north].cell_type is CellTypes.WALL and
+                self[south].cell_type is CellTypes.WALL and
+                self[west].cell_type is not CellTypes.WALL and
+                self[east].cell_type is not CellTypes.WALL) or \
+               (self[north].cell_type is not CellTypes.WALL and
+                self[south].cell_type is not CellTypes.WALL and
+                self[west].cell_type is CellTypes.WALL and
+                self[east].cell_type is CellTypes.WALL):
+                return True
+            return False
 
         g = self.graph
         for row in range(self.rows):
             for col in range(self.cols):
                 cur_loc = (row, col)
-                north = cur_loc[0] - 1, cur_loc[1]
-                east = cur_loc[0], cur_loc[1] + 1
-                south = cur_loc[0] + 1, cur_loc[1]
-                west = cur_loc[0], cur_loc[1] - 1
-                if self[cur_loc].cell_type is not CellTypes.WALL:
-                    if self[north].cell_type is CellTypes.WALL and \
-                        self[south].cell_type is CellTypes.WALL and \
-                        self[west].cell_type is not CellTypes.WALL and \
-                        self[east].cell_type is not CellTypes.WALL:
-                        continue
-                    if self[north].cell_type is not CellTypes.WALL and \
-                        self[south].cell_type is not CellTypes.WALL and \
-                        self[west].cell_type is CellTypes.WALL and \
-                        self[east].cell_type is CellTypes.WALL:
-                        continue
-                    for cur_h in Headings:
-                        u = g.add_vertex(cur_loc, cur_h)
-                        for adj_h, score in ((cur_h, 1),
-                                             (cur_h.cw(), 1001),
-                                             (cur_h.ccw(), 1001)):
-                            adj_loc = adj_h.add(cur_loc)
-                            while self[adj_loc].cell_type is not CellTypes.WALL:
-                                next_loc = adj_h.add(adj_loc)
-                                if self[next_loc].cell_type is CellTypes.WALL:
-                                    break
-                                adj_loc = next_loc
-                                score += 1
-                            if self[adj_loc].cell_type is not CellTypes.WALL:
-                                v = g.add_vertex(adj_loc, adj_h)
-                                g.add_edge(Edge(u, v, score))
+                if self[cur_loc].cell_type is CellTypes.WALL or is_corridor(cur_loc):
+                    continue
+
+                for cur_h in Headings:
+                    u = g.add_vertex(cur_loc, cur_h)
+                    for adj_h, score in ((cur_h, 1),
+                                         (cur_h.cw(), 1001),
+                                         (cur_h.ccw(), 1001)):
+                        adj_loc = adj_h.add(cur_loc)
+                        while self[adj_loc].cell_type is not CellTypes.WALL:
+                            next_loc = adj_h.add(adj_loc)
+                            if self[next_loc].cell_type is CellTypes.WALL:
+                                break
+                            adj_loc = next_loc
+                            score += 1
+                        if self[adj_loc].cell_type is not CellTypes.WALL:
+                            v = g.add_vertex(adj_loc, adj_h)
+                            g.add_edge(Edge(u, v, score))
         g.initialize()
         # g.solve()
 
@@ -186,6 +170,39 @@ class Course:
             path.append(loc)
             loc = self[loc].previous_loc
         return path
+
+    def traverse_maze(self):
+        future_moves = deque()
+        good_spots = set()
+        dir_map = {
+            'u': {'v': (-1, 0), 't': ['l', 'r']}, 'd': {'v': (1, 0), 't': ['l', 'r']},
+            'l': {'v': (0, -1), 't': ['u', 'd']}, 'r': {'v': (0, 1), 't': ['u', 'd']}
+        }
+
+        def dfs(loc, score, direction, reverse):
+            if self[loc].cell_type is CellTypes.WALL or (self[loc].score < score and not reverse):
+                return
+            if reverse:
+                if self[loc].score > score:
+                    return
+            else:
+                if self[loc].cell_type is CellTypes.EMPTY or self[loc].score > score:
+                    self[loc].score = score
+            if reverse:
+                good_spots.add(loc)
+            for n_dr in [direction, *dir_map[direction]['t']]:
+                n_loc = tuple([loc[i] + dir_map[n_dr]['v'][i] for i in [0, 1]])
+                dif = (1001 if n_dr != direction else 1) * (-1 if reverse else 1)
+                future_moves.append([n_loc, score + dif, n_dr, reverse])
+
+        future_moves.append([self.start, 0, 'r', False])
+        while future_moves:
+            dfs(*future_moves.popleft())
+        future_moves.append([self.end, self[self.end].score, 'd', True])
+        future_moves.append([self.end, self[self.end].score, 'l', True])
+        while future_moves:
+            dfs(*future_moves.popleft())
+        return self[self.end].score, len(good_spots)
 
     def __str__(self) -> str:
         return "\n".join(["".join([str(char) for char in line]) for line in self.course])
