@@ -65,20 +65,20 @@ class ALU:
         # ic(a, b, c, pc, opcode, operand, combo)
         left = f"{self.pc:2} {opcode.name}: "
         if opcode == Opcode.ADV:
-            self.reg_a = self.reg_a // (2 ** combo)
             if reg:
                 left += f"A <- A // 2**{reg} ({2 ** combo})"
             else:
                 left += f"A <- A // {2 ** combo}"
+            self.reg_a = self.reg_a // (2 ** combo)
         if opcode == Opcode.BXL:
-            self.reg_b = self.reg_b ^ operand
             left += f"B <- B XOR {operand}"
+            self.reg_b = self.reg_b ^ operand
         if opcode == Opcode.BST:
-            self.reg_b = combo % 8
             if reg:
                 left += f"B <- {reg} MOD 8 ({combo})"
             else:
                 left += f"B <- {combo} MOD 8"
+            self.reg_b = combo % 8
         if opcode == Opcode.JNZ:
             if self.reg_a:
                 next_pc = operand
@@ -86,23 +86,23 @@ class ALU:
             else:
                 left += f"NO JUMP"
         if opcode == Opcode.BXC:
-            self.reg_b = self.reg_b ^ self.reg_c
             left += f"B <- B XOR C"
+            self.reg_b = self.reg_b ^ self.reg_c
         if opcode == Opcode.OUT:
             self._output.append(str(combo % 8))
-            left += f"OUTPUT -> {self._output[-1]}"
+            left += f"OUTPUT (B MOD 8) -> {self._output[-1]}"
         if opcode == Opcode.BDV:
-            self.reg_b = self.reg_a // (2 ** combo)
             if reg:
                 left += f"B <- A // 2**{reg} ({2 ** combo})"
             else:
                 left += f"B <- A // {2 ** combo}"
+            self.reg_b = self.reg_a // (2 ** combo)
         if opcode == Opcode.CDV:
-            self.reg_c = self.reg_a // (2 ** combo)
             if reg:
                 left += f"C <- A // 2**{reg} ({2 ** combo})"
             else:
                 left += f"C <- A // {2 ** combo}"
+            self.reg_c = self.reg_a // (2 ** combo)
         self.pc = next_pc
         a = self.reg_a
         b = self.reg_b
